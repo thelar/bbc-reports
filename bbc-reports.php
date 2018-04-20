@@ -3,7 +3,7 @@
 Plugin Name: BBC Reports
 Description: Custom plugin to export reports from Jewson Building Better Communities
 Author: Kevin Price-Ward
-Version: 1.0
+Version: 1.3
 */
 
 add_action('admin_menu', 'bbc_reports_menu_page');
