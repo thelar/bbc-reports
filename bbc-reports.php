@@ -22,7 +22,7 @@ function bbc_reports_admin(){
     echo '<div class="wrap">';
     echo "<h1>Export CSV reports:</h1>";
     echo '<p>Use the drop down menu\'s below to select the criteria for your CSV export:</p>';
-?>
+    ?>
     <form id="bbc_csv_report_form" action="<?php echo get_admin_url().'admin-post.php'; ?>" method="post">
         <div class="row">
             <label for="type-select">Nomination type:</label>
@@ -43,7 +43,7 @@ function bbc_reports_admin(){
         <input type="hidden" name="action" value="submit-form"/>
         <input class="button-primary" type="submit" name="Example" value="<?php esc_attr_e( 'Export CSV' ); ?>" />
     </form>
-<?php
+    <?php
     echo '</div>';
 }
 
@@ -109,11 +109,36 @@ function _handle_form_action(){
             $nominator_first_name = get_field('nominator_first_name');
             $nominator_last_name = get_field('nominator_last_name');
             $nominator_email = get_field('nominator_email');
-            $opt_in_emails = get_field('nomination_opt_in_to_emails');
-            $opt_in_sms = get_field('opt_in_to_sms');
-            $opt_in_telephone = get_field('opt_in_to_telephone');
-            $opt_in_post = get_field('opt_in_to_post');
-            $opt_out = get_field('opt_out');
+            $opt_in_emails = get_field('nomination_opt_in_to_emails')[0];
+            if(!empty($opt_in_emails)){
+                $opt_in_emails = 'yes';
+            }else{
+                $opt_in_emails = 'no';
+            }
+            $opt_in_sms = get_field('opt_in_to_sms')[0];
+            if(!empty($opt_in_sms)){
+                $opt_in_sms = 'yes';
+            }else{
+                $opt_in_sms = 'no';
+            }
+            $opt_in_telephone = get_field('opt_in_to_telephone')[0];
+            if(!empty($opt_in_telephone)){
+                $opt_in_telephone = 'yes';
+            }else{
+                $opt_in_telephone = 'no';
+            }
+            $opt_in_post = get_field('opt_in_to_post')[0];
+            if(!empty($opt_in_post)){
+                $opt_in_post = 'yes';
+            }else{
+                $opt_in_post = 'no';
+            }
+            $opt_out = get_field('opt_out')[0];
+            if(!empty($opt_out)){
+                $opt_out = 'yes';
+            }else{
+                $opt_out = 'no';
+            }
 
             $row = [
                 get_the_ID(),
