@@ -109,6 +109,11 @@ function _handle_form_action(){
             $nominator_first_name = get_field('nominator_first_name');
             $nominator_last_name = get_field('nominator_last_name');
             $nominator_email = get_field('nominator_email');
+            $opt_in_emails = get_field('nomination_opt_in_to_emails');
+            $opt_in_sms = get_field('opt_in_to_sms');
+            $opt_in_telephone = get_field('opt_in_to_telephone');
+            $opt_in_post = get_field('opt_in_to_post');
+            $opt_out = get_field('opt_out');
 
             $row = [
                 get_the_ID(),
@@ -121,11 +126,16 @@ function _handle_form_action(){
                 $nominator_title,
                 $nominator_first_name,
                 $nominator_last_name,
-                $nominator_email
+                $nominator_email,
+                $opt_in_emails,
+                $opt_in_sms,
+                $opt_in_telephone,
+                $opt_in_post,
+                $opt_out
             ];
             $array[] = $row;
         }
-        array_unshift($array, array('id','title','link','login','author_first_name','author_last_name','author_email','nominator_title','nominator_first_name','nominator_last_name','nominator_email'));
+        array_unshift($array, array('id','title','link','login','author_first_name','author_last_name','author_email','nominator_title','nominator_first_name','nominator_last_name','nominator_email','opt_in_emails','opt_in_sms','opt_in_telephone','opt_in_post','opt_out'));
     }
 
     wp_reset_postdata();
