@@ -1,186 +1,267 @@
 <?php
 /*
-Plugin Name: BBC Reports
-Description: Custom plugin to export reports from Jewson Building Better Communities
+Plugin Name: BBC Place Award
+Description: Custom plugin to place award on the BBC site
 Author: Kevin Price-Ward
-Version: 1.3
+Version: 1.4
 */
 
-add_action('admin_menu', 'bbc_reports_menu_page');
-
-function bbc_reports_menu_page(){
-    add_menu_page( 'Reports', 'Reports', 'manage_options', 'bbc-reports', 'bbc_reports_admin', 'dashicons-external' );
+add_action( 'admin_enqueue_scripts', 'bbc_pa_load_admin_style' );
+function bbc_pa_load_admin_style() {
+    wp_register_style( 'bbc_pa_style', plugin_dir_url( __FILE__ ) . 'css/admin.css', false, '1.0.0' );
+//OR
+    wp_enqueue_style( 'bbc_pa_style' );
 }
 
-function bbc_reports_nominations_script()
-{
-    wp_enqueue_script( 'bbc_reports_script', plugin_dir_url( __FILE__ ) . 'scripts/common.js', ['jquery'] );
-}
-add_action('admin_enqueue_scripts', 'bbc_reports_nominations_script');
-
-function bbc_reports_admin(){
-    echo '<div class="wrap">';
-    echo "<h1>Export CSV reports:</h1>";
-    echo '<p>Use the drop down menu\'s below to select the criteria for your CSV export:</p>';
-    ?>
-    <form id="bbc_csv_report_form" action="<?php echo get_admin_url().'admin-post.php'; ?>" method="post">
-        <div class="row">
-            <label for="type-select">Nomination type:</label>
-            <select name="type-select" id="type-select">
-                <option selected="selected" value="">- All types -</option>
-                <option value="trade-hero">Trade Hero</option>
-                <option value="community-project">Community Project</option>
-                <option value="top-community-prize">Top Community Prize</option>
-            </select>
-        </div>
-        <div class="row mt-4">
-            <h3>Submitted?</h3>
-            <input type="radio" name="is-submitted" value="yes" id="is-submitted-yes"/><label for="is-submitted-yes">Submitted</label>
-            <input type="radio" name="is-submitted" value="no" id="is-submitted-no"/><label for="is-submitted-no">Not submitted</label>
-            <input type="radio" name="is-submitted" value="" id="is-submitted-both" checked="checked"/><label for="is-submitted-both">Both</label>
-        </div>
-        <br><br>
-        <input type="hidden" name="action" value="submit-form"/>
-        <input class="button-primary" type="submit" name="Example" value="<?php esc_attr_e( 'Export CSV' ); ?>" />
-    </form>
-    <?php
-    echo '</div>';
-}
-
-add_action('admin_post_submit-form', '_handle_form_action'); // If the user is logged in
-add_action('admin_post_nopriv_submit-form', '_handle_form_action'); // If the user in not logged in
-function _handle_form_action(){
-    $array = [];
+function bbc_pa_add_meta_boxes(){
     global $post;
-
-    $type = filter_var($_POST['type-select'], FILTER_SANITIZE_STRING);
-    $submitted = filter_var($_POST['is-submitted'], FILTER_SANITIZE_STRING);
-    if(!empty($type)){
-        $post_type = $type;
-    }else{
-        $post_type = ['trade-hero', 'community-project', 'top-community-prize'];
-    }
-
-    $query = [
-        'post_type' => $post_type,
-        'posts_per_page' => -1,
-    ];
-
-    if(!empty($submitted)){
-        if($submitted==='yes'){
-            $query['meta_value'] = true;
-
-            $meta_query = [
-                [
-                    'key' => 'nomination_submitted',
-                    'value' => true,
-                    'compare' => '='
-                ]
-            ];
-        }else if($submitted==='no'){
-            $meta_query = [
-                'relation' => 'OR',
-                [
-                    'key' => 'nomination_submitted',
-                    'value' => false,
-                    'compare' => '='
-                ],
-                [
-                    'key' => 'nomination_submitted',
-                    'value' => true,
-                    'compare' => 'NOT EXISTS'
-                ]
-            ];
+    $submitted = get_field('nomination_submitted', $post->ID);
+    $types = ['community-project', 'top-community-prize', 'trade-hero'];
+    if($submitted===true){
+        foreach($types as $type){
+            add_meta_box(
+                'bbc_pa_meta_box',
+                'Votes/Awards',
+                'bbc_pa_meta_box_content',
+                $type,
+                'side',
+                'high',
+                'callback value'
+            );
         }
-        $query['meta_query'] = $meta_query;
+    }
+}
+add_action('add_meta_boxes', 'bbc_pa_add_meta_boxes');
+
+function bbc_pa_meta_box_content($post, $args){
+    bbc_pa_print_votes($post->ID);
+    bbc_pa_print_award_info($post->ID);
+    bbc_pa_assign_prize_form();
+}
+
+function bbc_pa_print_votes($post_id){
+    $vote_types = ['staff', 'public'];
+    foreach($vote_types as $vote_type){
+        if(function_exists('\Bbc\get_vote_print')){
+            printf('<p class="%s">%s votes: <strong>%s</strong></p>', $vote_type, ucfirst($vote_type), \Bbc\get_vote_print($post_id, $vote_type));
+        }
+    }
+}
+
+// ONLY MOVIE CUSTOM TYPE POSTS
+add_filter('manage_trade-hero_posts_columns', 'bbc_pa_head_only', 10);
+add_action('manage_trade-hero_posts_custom_column', 'bbc_pa_column_only', 10, 2);
+add_filter('manage_top-community-prize_posts_columns', 'bbc_pa_head_only', 10);
+add_action('manage_top-community-prize_posts_custom_column', 'bbc_pa_column_only', 10, 2);
+add_filter('manage_community-project_posts_columns', 'bbc_pa_head_only', 10);
+add_action('manage_community-project_posts_custom_column', 'bbc_pa_column_only', 10, 2);
+// ADD NEW COLUMN
+function bbc_pa_head_only($defaults) {
+    $defaults['public_votes'] = 'Public votes';
+    $defaults['staff_votes'] = 'Staff votes';
+    if(\Bbc\is_site_mode(['Judging', 'Awards'])){
+        $defaults['award_amount'] = 'Award';
     }
 
+    return $defaults;
+}
+//SHOW PUBLIC VOTES
+function bbc_pa_column_only($column_name, $post_ID){
+    if ($column_name == 'public_votes') {
+        echo \Bbc\get_vote_print($post_ID, 'public');
+    }
+    if ($column_name == 'staff_votes') {
+        echo \Bbc\get_vote_print($post_ID, 'staff');
+    }
+    if(\Bbc\is_site_mode(['Judging', 'Awards'])) {
+        if ($column_name == 'award_amount') {
+            $award = get_post_meta($post_ID, 'bbc_pa_prize_award', true);
+            echo '&pound;' . number_format((float)$award, 2);
+        }
+    }
+}
+
+function bbc_pa_print_award_info($post_id){
+    if(\Bbc\is_site_mode(['Judging'])){
+        echo '<hr/>';
+        $prize_fund_total = get_field('total_prize_fund', 'options');
+        $prize_fund_summary = bbc_pa_summary_prize_total();
+        $prize_fund_available = $prize_fund_total - $prize_fund_summary;
+
+        printf('<p>You have <strong>&pound;%s</strong> available out of a total prize fund of <strong>&pound;%s</strong>.</p>', number_format($prize_fund_available, 2), number_format($prize_fund_total, 2));
+    }
+}
+
+function bbc_pa_summary_prize_total(){
+    global $post;
     $tmp = $post;
+    $value = 0;
+    $args = array(
+        'post_type' => ['community-project', 'trade-hero', 'top-community-prize'],
+        'posts_per_page' => -1,
+        'meta_key' => 'bbc_pa_prize_award',
+        'meta_value_num' => 0,
+        'meta_compare' => '>',
+    );
 
-    $nominations = new \WP_Query($query);
-    if($nominations->have_posts()){
-        while($nominations->have_posts()){
-            $nominations->the_post();
-            $author_email = get_the_author_meta('user_email');
-            $author_display_name = get_the_author_meta('display_name');
-            $author_first_name = get_the_author_meta('first_name');
-            $author_last_name = get_the_author_meta('last_name');
-            $nominator_title = get_field('nominator_title');
-            $nominator_first_name = get_field('nominator_first_name');
-            $nominator_last_name = get_field('nominator_last_name');
-            $nominator_email = get_field('nominator_email');
-            $opt_in_emails = get_field('nomination_opt_in_to_emails')[0];
-            if(!empty($opt_in_emails)){
-                $opt_in_emails = 'yes';
-            }else{
-                $opt_in_emails = 'no';
+    $query = new WP_Query( $args );
+    if($query->have_posts()){
+        while($query->have_posts()){
+            $query->the_post();
+            if(!empty(get_post_meta($post->ID, 'bbc_pa_prize_award')[0])){
+                $value+= get_post_meta($post->ID, 'bbc_pa_prize_award')[0];
             }
-            $opt_in_sms = get_field('opt_in_to_sms')[0];
-            if(!empty($opt_in_sms)){
-                $opt_in_sms = 'yes';
-            }else{
-                $opt_in_sms = 'no';
-            }
-            $opt_in_telephone = get_field('opt_in_to_telephone')[0];
-            if(!empty($opt_in_telephone)){
-                $opt_in_telephone = 'yes';
-            }else{
-                $opt_in_telephone = 'no';
-            }
-            $opt_in_post = get_field('opt_in_to_post')[0];
-            if(!empty($opt_in_post)){
-                $opt_in_post = 'yes';
-            }else{
-                $opt_in_post = 'no';
-            }
-            $opt_out = get_field('opt_out')[0];
-            if(!empty($opt_out)){
-                $opt_out = 'yes';
-            }else{
-                $opt_out = 'no';
-            }
-
-            $row = [
-                get_the_ID(),
-                get_the_title(),
-                get_the_permalink(),
-                $author_display_name,
-                $author_first_name,
-                $author_last_name,
-                $author_email,
-                $nominator_title,
-                $nominator_first_name,
-                $nominator_last_name,
-                $nominator_email,
-                $opt_in_emails,
-                $opt_in_sms,
-                $opt_in_telephone,
-                $opt_in_post,
-                $opt_out
-            ];
-            $array[] = $row;
         }
-        array_unshift($array, array('id','title','link','login','author_first_name','author_last_name','author_email','nominator_title','nominator_first_name','nominator_last_name','nominator_email','opt_in_emails','opt_in_sms','opt_in_telephone','opt_in_post','opt_out'));
     }
 
     wp_reset_postdata();
     $post = $tmp;
     setup_postdata($post);
 
-    ob_end_clean();
+    return $value;
+}
 
-    header("Content-type: text/csv");
-    header("Content-Disposition: attachment; filename=export.csv");
-    header("Pragma: no-cache");
-    header("Expires: 0");
+function bbc_pa_assign_prize_form(){
+    global $post;
+    $value = get_post_meta($post->ID, 'bbc_pa_prize_award', true);
 
-    // open the "output" stream
-    // see http://www.php.net/manual/en/wrappers.php.php#refsect2-wrappers.php-unknown-unknown-unknown-descriptioq
-    $f = fopen('php://output', 'w');
-
-    foreach ($array as $line) {
-        fputcsv($f, $line);
+    if (\Bbc\is_site_mode(['Judging'])) {
+        echo '<hr/>';
+        ?>
+        <label for="bbc_prize_amount">How much are you awarding this candidate nomination?</label>
+        <div style="margin-top: 0.5em"><strong>&pound;</strong> <input name="bbc_prize_amount" id="bbc_prize_amount"
+                                                                       class="" type="text" value="<?= $value ?>"
+                                                                       style="width: 93%;"/></div>
+        <?php
+        if(get_post_type($post->ID)==='trade-hero'||get_post_type($post->ID)==='top-community-prize'){
+            //Get info about the top prize
+            $top_prize_info = ba_get_top_prize_info(get_post_type($post->ID));
+            //var_dump($top_prize_info);
+            if($top_prize_info['count']===0){
+                echo '<hr style="margin-top: 1em;"/>';
+                echo '<div style="margin-top: 1em;"><input type="checkbox" name="bbc_is_top_prize" id="bbc_is_top_prize" value="yes"/> <label for="bbc_is_top_prize">Top prize winner?</label> </div>';
+            }else{
+                if(in_array($post->ID, $top_prize_info['posts'])){
+                    echo '<hr style="margin-top: 1em;"/>';
+                    echo '<p>This nomination has been awarded the top prize, untick the checkbox below to remove...</p>';
+                    echo '<div style="margin-top: 1em;"><input type="checkbox" name="bbc_is_top_prize" id="bbc_is_top_prize" value="yes" checked="checked"/><label for="bbc_is_top_prize">Top prize winner?</label></div>';
+                    echo '<input type="hidden" name="bbc_post_has_top_prize" id="bbc_post_has_top_prize" value="yes"/>';
+                }else{
+                    echo '<hr style="margin-top: 1em;"/>';
+                    printf('<p>You cannot award the top prize because it has already been awarded to <strong><a href="%s">%s</a></strong></p>', admin_url('post.php?post='.$top_prize_info['posts'][0].'&action=edit'), get_the_title($top_prize_info['posts'][0]));
+                }
+            }
+        }
+    } else if (\Bbc\is_site_mode(['Awards'])) {
+        if (!empty($value)) {
+            echo '<hr/>';
+            printf('<p>This nomination was awarded <strong>&pound;%s</strong></p>', number_format($value, 2));
+        }
     }
-    fclose($f);
-    die();
+}
+
+function ba_get_top_prize_info($type){
+    global $post;
+    $tmp = $post;
+
+    $info = [];
+
+    $args = [
+        'post_type' => $type,
+        'meta_key' => 'bbc_pa_is_top',
+        'meta_value' => 'yes'
+    ];
+    $top_prize = new \WP_Query($args);
+    if($top_prize->have_posts()){
+        $info['count'] = $top_prize->found_posts;
+        while($top_prize->have_posts()){
+            $top_prize->the_post();
+            $info['posts'][] = $post->ID;
+        }
+    }else{
+        $info['count'] = 0;
+    }
+
+    wp_reset_postdata();
+    $post = $tmp;
+    setup_postdata($post);
+
+    return $info;
+}
+
+
+//SAVING POSTS
+add_action('save_post_trade-hero', 'bbc_pa_save_post');
+add_action('save_post_community-project', 'bbc_pa_save_post');
+add_action('save_post_top-community-prize', 'bbc_pa_save_post');
+
+function bbc_pa_save_post($post_id){
+    if (array_key_exists('bbc_prize_amount', $_POST)) {
+        //Check value
+        $user_id = get_current_user_id();
+        $value = filter_var($_POST['bbc_prize_amount'], FILTER_SANITIZE_STRING);
+        $top_prize = filter_var($_POST['bbc_is_top_prize'], FILTER_SANITIZE_STRING);
+        $has_top_prize = filter_var($_POST['bbc_post_has_top_prize'], FILTER_SANITIZE_STRING);
+        if(!empty($value)){
+            if(!is_numeric($value)){
+                $error_msg = '<strong>' . $value . '</strong> is not a valid prize amount';
+            }else{
+                if(strpos($value, '.')){
+                    $error_msg = '<strong>' . $value . '</strong> is not a whole number';
+                }else{
+                    //Now check that it would not break the bank
+                    $pot = get_field('total_prize_fund', 'options');
+                    $sum = bbc_pa_summary_prize_total();
+                    $fund = $pot - $sum;
+                    if($fund - $value < 0){
+                        $error_msg = 'You do not have enough funds to award <strong>&pound;' . number_format($value, 2) .'</strong>';
+                    }
+                }
+            }
+        }
+
+
+        if(!empty($error_msg)){
+            $error = new WP_Error('bbc_pa_error', $error_msg);
+            set_transient("bbc_pa_save_post_errors_{$post_id}_{$user_id}", $error, 45);
+        }else{
+            update_post_meta(
+                $post_id,
+                'bbc_pa_prize_award',
+                $_POST['bbc_prize_amount']
+            );
+        }
+
+        //Top prize
+        if($has_top_prize==='yes'){
+            //Remove the top prize if it's not set
+            if(!$top_prize!=='yes'){
+                delete_post_meta($post_id, 'bbc_pa_is_top');
+            }
+        }else{
+            if($top_prize==='yes'){
+                update_post_meta(
+                    $post_id,
+                    'bbc_pa_is_top',
+                    $top_prize
+                );
+            }
+        }
+    }
+}
+
+add_action('admin_notices', 'bbc_pa_admin_notices');
+function bbc_pa_admin_notices(){
+    global $post;
+    if($post){
+        $post_id = $post->ID;
+        $user_id = get_current_user_id();
+        if ( $error = get_transient( "bbc_pa_save_post_errors_{$post_id}_{$user_id}" ) ) { ?>
+            <div class="error">
+            <p><?php echo $error->get_error_message(); ?></p>
+            </div><?php
+
+            delete_transient("bbc_pa_save_post_errors_{$post_id}_{$user_id}");
+        }
+    }
 }
