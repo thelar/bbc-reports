@@ -3,7 +3,7 @@
 Plugin Name: BBC Place Award
 Description: Custom plugin to place award on the BBC site
 Author: Kevin Price-Ward
-Version: 1.4
+Version: 1.5
 */
 
 add_action( 'admin_enqueue_scripts', 'bbc_pa_load_admin_style' );
