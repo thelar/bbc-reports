@@ -3,7 +3,7 @@
 Plugin Name: BBC Reports
 Description: Custom plugin to export reports from Jewson Building Better Communities
 Author: Kevin Price-Ward
-Version: 1.6
+Version: 1.7
 */
 
 add_action('admin_menu', 'bbc_reports_menu_page');
@@ -139,6 +139,12 @@ function _handle_form_action(){
             }else{
                 $opt_out = 'no';
             }
+            $is_tradesperson = get_field('tradesperson_check')[0];
+            if(!empty($is_tradesperson)){
+                $is_tradesperson = 'yes';
+            }else{
+                $is_tradesperson = 'no';
+            }
 
             $row = [
                 get_the_ID(),
@@ -156,11 +162,12 @@ function _handle_form_action(){
                 $opt_in_sms,
                 $opt_in_telephone,
                 $opt_in_post,
-                $opt_out
+                $opt_out,
+                $is_tradesperson
             ];
             $array[] = $row;
         }
-        array_unshift($array, array('id','title','link','login','author_first_name','author_last_name','author_email','nominator_title','nominator_first_name','nominator_last_name','nominator_email','opt_in_emails','opt_in_sms','opt_in_telephone','opt_in_post','opt_out'));
+        array_unshift($array, array('id','title','link','login','author_first_name','author_last_name','author_email','nominator_title','nominator_first_name','nominator_last_name','nominator_email','opt_in_emails','opt_in_sms','opt_in_telephone','opt_in_post','opt_out','is_tradesperson'));
     }
 
     wp_reset_postdata();
