@@ -3,7 +3,7 @@
 Plugin Name: BBC Reports
 Description: Custom plugin to export reports from Jewson Building Better Communities
 Author: Kevin Price-Ward
-Version: 1.10
+Version: 1.11
 */
 
 add_action('admin_menu', 'bbc_reports_menu_page');
@@ -204,14 +204,15 @@ function _handle_form_action(){
         die();
     }else if(isset($_POST['registrants_submit'])){
         $role = $_POST['role-select'];
-        $user_args = [];
-        if($role!==''){
+        $user_args = ['orderby' => 'registered'];
+        if($role!=='all'){
             $user_args['role'] = $role;
         }else{
-            $user_args['role'] = 'all';
+            $user_args['role__in'] = ['wpseo_editor', 'wpseo_manager', 'jewson_staff', 'subscriber', 'pending', 'editor', 'contributor', 'author', 'administrator'];
         }
+        //var_dump($user_args);
+
         $users = get_users($user_args);
-        var_dump($users);
         foreach($users as $user){
             $row = [];
             $user_id = $user->ID;
