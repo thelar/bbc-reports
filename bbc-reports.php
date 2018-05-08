@@ -3,7 +3,7 @@
 Plugin Name: BBC Reports
 Description: Custom plugin to export reports from Jewson Building Better Communities
 Author: Kevin Price-Ward
-Version: 1.11
+Version: 1.12
 */
 
 add_action('admin_menu', 'bbc_reports_menu_page');
@@ -221,6 +221,12 @@ function _handle_form_action(){
             $user_email = $user->data->user_email;
             $user_registered = $user->data->user_registered;
             $user_display_name = $user->data->display_name;
+            $user_opt_in_email = get_user_meta($user_id, 'opt_in_email', true);
+            $user_opt_in_sms = get_user_meta($user_id, 'opt_in_sms', true);
+            $user_opt_in_telephone = get_user_meta($user_id, 'opt_in_telephone', true);
+            $user_opt_in_post = get_user_meta($user_id, 'opt_in_post', true);
+            $user_opt_out = get_user_meta($user_id, 'opt_out', true);
+            $user_opt_in_tradesperson = get_user_meta($user_id, 'opt_in_tradesperson', true);
 
             $row = [
                 $user_id,
@@ -228,13 +234,19 @@ function _handle_form_action(){
                 $user_nicename,
                 $user_email,
                 $user_registered,
-                $user_display_name
+                $user_display_name,
+                $user_opt_in_email,
+                $user_opt_in_sms,
+                $user_opt_in_telephone,
+                $user_opt_in_post,
+                $user_opt_out,
+                $user_opt_in_tradesperson
             ];
 
             $array[] = $row;
         }
 
-        array_unshift($array, array('id','user_login','user_nicename','user_email','user_registered','user_display_name'));
+        array_unshift($array, array('id','user_login','user_nicename','user_email','user_registered','user_display_name','opt_in_email','opt_in_sms','opt_in_telephone','opt_in_post','opt_out','is_tradesperson'));
 
         ob_end_clean();
 
