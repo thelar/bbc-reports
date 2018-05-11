@@ -3,7 +3,7 @@
 Plugin Name: BBC Reports
 Description: Custom plugin to export reports from Jewson Building Better Communities
 Author: Kevin Price-Ward
-Version: 1.13
+Version: 1.14
 */
 
 add_action('admin_menu', 'bbc_reports_menu_page');
@@ -125,6 +125,8 @@ function _handle_form_action(){
                 $nominator_last_name = get_field('nominator_last_name');
                 $nominator_email = get_field('nominator_email');
                 $opt_in_emails = get_field('nomination_opt_in_to_emails')[0];
+                $staff_votes = \Bbc\get_vote_print($post->ID, 'staff');
+                $public_votes = \Bbc\get_vote_print($post->ID, 'public');
                 if(!empty($opt_in_emails)){
                     $opt_in_emails = 'yes';
                 }else{
@@ -180,11 +182,13 @@ function _handle_form_action(){
                     $opt_in_telephone,
                     $opt_in_post,
                     $opt_out,
-                    $is_tradesperson
+                    $is_tradesperson,
+                    $staff_votes,
+                    $public_votes
                 ];
                 $array[] = $row;
             }
-            array_unshift($array, array('id','title','link','post_type','region','login','author_first_name','author_last_name','author_email','nominator_title','nominator_first_name','nominator_last_name','nominator_email','opt_in_emails','opt_in_sms','opt_in_telephone','opt_in_post','opt_out','is_tradesperson'));
+            array_unshift($array, array('id','title','link','post_type','region','login','author_first_name','author_last_name','author_email','nominator_title','nominator_first_name','nominator_last_name','nominator_email','opt_in_emails','opt_in_sms','opt_in_telephone','opt_in_post','opt_out','is_tradesperson','staff_votes','public_votes'));
         }
 
         wp_reset_postdata();
